@@ -19,7 +19,7 @@ find_package(Clang REQUIRED CONFIG)
 
 add_executable(
 	dynamic-by-default 
-	DBD.cpp
+        DBD.cc
 	)
 
 target_include_directories(
