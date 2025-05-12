@@ -77,7 +77,9 @@ block::type::Ptr DynamicByDefaultVisitor::lower_type(clang::QualType type)
                 bat->size = cat->getSize().getSExtValue();
                 return bat;
         }
-        else if (const clang::DecayedType * dt = dyn_cast<const clang::DecayedType>(t))
+        else if (
+                const clang::DecayedType * dt
+                = dyn_cast<const clang::DecayedType>(t))
         {
                 return lower_type(dt->getDecayedType());
         }
@@ -93,7 +95,8 @@ block::type::Ptr DynamicByDefaultVisitor::wrap_type(block::type::Ptr type)
         return bt;
 }
 
-block::var::Ptr DynamicByDefaultVisitor::lower_function_arg(clang::ParmVarDecl * p)
+block::var::Ptr
+DynamicByDefaultVisitor::lower_function_arg(clang::ParmVarDecl * p)
 {
         block::var::Ptr v = std::make_shared<block::var>();
         v->var_name = p->getNameAsString();
@@ -116,6 +119,50 @@ block::expr::Ptr DynamicByDefaultVisitor::create_compound_expr(
         return a;
 }
 
+block::binary_expr::Ptr simple_binary_opcode_to_ptr(clang::Opcode op)
+{
+        switch (op)
+        {
+                case clang::BO_Add:
+                        return std::make_shared<block::plus_expr>();
+                case clang::BO_LT:
+                        return std::make_shared<block::lt_expr>();
+                case clang::BO_GT:
+                        return std::make_shared<block::gt_expr>();
+                case clang::BO_LE:
+                        return std::make_shared<block::lte_expr>();
+                case clang::BO_GE:
+                        return std::make_shared<block::gte_expr>();
+                case clang::BO_LAnd:
+                        return std::make_shared<block::and_expr>();
+                case clang::BO_LOr:
+                        return std::make_shared<block::or_expr>();
+                case clang::BO_NE:
+                        return std::make_shared<block::ne_expr>();
+                case clang::BO_EQ:
+                        return std::make_shared<block::equals_expr>();
+                case clang::BO_Rem:
+                        return std::make_shared<block::mod_expr>();
+                case clang::BO_Mul:
+                        return std::make_shared<block::mul_expr>();
+                case clang::BO_Div:
+                        return std::make_shared<block::div_expr>();
+                case clang::BO_Sub:
+                        return std::make_shared<block::minus_expr>();
+                case clang::BO_Shl:
+                        return std::make_shared<block::lshift_expr>();
+                case clang::BO_Shr:
+                        return std::make_shared<block::rshift_expr>();
+                case clang::BO_And:
+                        return std::make_shared<block::bitwise_and_expr>();
+                case clang::BO_Xor:
+                        return std::make_shared<block::bitwise_xor_expr>();
+                case clang::BO_Or:
+                        return std::make_shared<block::bitwise_or_expr>();
+        }
+        return nullptr;
+}
+
 block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
 {
         if (e == nullptr)
@@ -124,21 +171,25 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
         {
                 return lower_expr(pe->getSubExpr());
         }
-        else if (clang::IntegerLiteral * il = dyn_cast<clang::IntegerLiteral>(e))
+        else if (
+                clang::IntegerLiteral * il = dyn_cast<clang::IntegerLiteral>(e))
         {
                 auto ic = std::make_shared<block::int_const>();
                 ic->value = il->getValue().getSExtValue();
                 ic->is_64bit = false;
                 return ic;
         }
-        else if (clang::CharacterLiteral * cl = dyn_cast<clang::CharacterLiteral>(e))
+        else if (
+                clang::CharacterLiteral * cl
+                = dyn_cast<clang::CharacterLiteral>(e))
         {
                 auto ic = std::make_shared<block::int_const>();
                 ic->value = cl->getValue();
                 ic->is_64bit = false;
                 return ic;
         }
-        else if (clang::BinaryOperator * bo = dyn_cast<clang::BinaryOperator>(e))
+        else if (
+                clang::BinaryOperator * bo = dyn_cast<clang::BinaryOperator>(e))
         {
                 if (bo->getOpcode() == clang::BO_Assign)
                 {
@@ -150,77 +201,8 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 else
                 {
                         // Handle the regular binary operators
-                        block::binary_expr::Ptr be = nullptr;
                         switch (bo->getOpcode())
                         {
-                                case clang::BO_Add:
-                                        be = std::make_shared<
-                                                block::plus_expr>();
-                                        break;
-                                case clang::BO_LT:
-                                        be = std::make_shared<block::lt_expr>();
-                                        break;
-                                case clang::BO_GT:
-                                        be = std::make_shared<block::gt_expr>();
-                                        break;
-                                case clang::BO_LE:
-                                        be = std::make_shared<
-                                                block::lte_expr>();
-                                        break;
-                                case clang::BO_GE:
-                                        be = std::make_shared<
-                                                block::gte_expr>();
-                                        break;
-                                case clang::BO_LAnd:
-                                        be = std::make_shared<
-                                                block::and_expr>();
-                                        break;
-                                case clang::BO_LOr:
-                                        be = std::make_shared<block::or_expr>();
-                                        break;
-                                case clang::BO_NE:
-                                        be = std::make_shared<block::ne_expr>();
-                                        break;
-                                case clang::BO_EQ:
-                                        be = std::make_shared<
-                                                block::equals_expr>();
-                                        break;
-                                case clang::BO_Rem:
-                                        be = std::make_shared<
-                                                block::mod_expr>();
-                                        break;
-                                case clang::BO_Mul:
-                                        be = std::make_shared<
-                                                block::mul_expr>();
-                                        break;
-                                case clang::BO_Div:
-                                        be = std::make_shared<
-                                                block::div_expr>();
-                                        break;
-                                case clang::BO_Sub:
-                                        be = std::make_shared<
-                                                block::minus_expr>();
-                                        break;
-                                case clang::BO_Shl:
-                                        be = std::make_shared<
-                                                block::lshift_expr>();
-                                        break;
-                                case clang::BO_Shr:
-                                        be = std::make_shared<
-                                                block::rshift_expr>();
-                                        break;
-                                case clang::BO_And:
-                                        be = std::make_shared<
-                                                block::bitwise_and_expr>();
-                                        break;
-                                case clang::BO_Xor:
-                                        be = std::make_shared<
-                                                block::bitwise_xor_expr>();
-                                        break;
-                                case clang::BO_Or:
-                                        be = std::make_shared<
-                                                block::bitwise_or_expr>();
-                                        break;
                                 // Operations like MulAssign need to be
                                 // handled separately
                                 case clang::BO_MulAssign:
@@ -228,68 +210,61 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                                                 bo,
                                                 std::make_shared<
                                                         block::mul_expr>());
-                                        break;
                                 case clang::BO_DivAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::div_expr>());
-                                        break;
                                 case clang::BO_RemAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::mod_expr>());
-                                        break;
                                 case clang::BO_AddAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::plus_expr>());
-                                        break;
                                 case clang::BO_SubAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::minus_expr>());
-                                        break;
                                 case clang::BO_ShlAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::lshift_expr>());
-                                        break;
                                 case clang::BO_ShrAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::rshift_expr>());
-                                        break;
                                 case clang::BO_AndAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::bitwise_and_expr>());
-                                        break;
                                 case clang::BO_XorAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::bitwise_xor_expr>());
-                                        break;
                                 case clang::BO_OrAssign:
                                         return create_compound_expr(
                                                 bo,
                                                 std::make_shared<
                                                         block::bitwise_or_expr>());
-                                        break;
                                 default:
-                                        bo->dump();
-                                        llvm_unreachable(
-                                                "Cannot handle binary "
-                                                "operator");
                                         break;
                         }
+                        block::binary_expr::Ptr be
+                                = simple_binary_opcode_to_ptr(bo->getOpcode());
+                        if (!be)
+                                bo->dump();
+                        llvm_unreachable(
+                                "Cannot handle binary "
+                                "operator");
                         be->expr1 = lower_expr(bo->getLHS());
                         be->expr2 = lower_expr(bo->getRHS());
                         return be;
@@ -361,7 +336,8 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
         }
         else if (clang::CastExpr * ice = dyn_cast<clang::CastExpr>(e))
         {
-                if (clang::ImplicitCastExpr * ice = dyn_cast<clang::ImplicitCastExpr>(e))
+                if (clang::ImplicitCastExpr * ice
+                    = dyn_cast<clang::ImplicitCastExpr>(e))
                 {
                         // All implicit casts can actually be lowered as
                         // it is, There is special cast with void*
@@ -390,7 +366,9 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 ve->var1 = v;
                 return ve;
         }
-        else if (clang::ArraySubscriptExpr * ase = dyn_cast<clang::ArraySubscriptExpr>(e))
+        else if (
+                clang::ArraySubscriptExpr * ase
+                = dyn_cast<clang::ArraySubscriptExpr>(e))
         {
                 auto sbe = std::make_shared<block::sq_bkt_expr>();
                 sbe->var_expr = lower_expr(ase->getLHS());
@@ -568,13 +546,12 @@ bool DynamicByDefaultVisitor::VisitFunctionDecl(clang::FunctionDecl * fd)
         return true;
 }
 
-DynamicByDefaultConsumer::DynamicByDefaultConsumer(
-        clang::ASTContext * context)
+DynamicByDefaultConsumer::DynamicByDefaultConsumer(clang::ASTContext * context)
     : Visitor(context, new_decls)
 {
 }
-void
-DynamicByDefaultConsumer::HandleTranslationUnit(clang::ASTContext & context)
+void DynamicByDefaultConsumer::HandleTranslationUnit(
+        clang::ASTContext & context)
 {
         Visitor.TraverseDecl(context.getTranslationUnitDecl());
 
@@ -627,8 +604,9 @@ int main(int argc, const char * argv[])
 
         if (argc > 1)
         {
-                auto OptionsParser = clang::tooling::CommonOptionsParser::create(
-                        argc, argv, DynamicByDefaultCategory);
+                auto OptionsParser
+                        = clang::tooling::CommonOptionsParser::create(
+                                argc, argv, DynamicByDefaultCategory);
                 if (!OptionsParser)
                         return -1;
                 clang::tooling::ClangTool Tool(
