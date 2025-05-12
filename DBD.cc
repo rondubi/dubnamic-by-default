@@ -56,10 +56,13 @@ block::type::Ptr DynamicByDefaultVisitor::lower_type(clang::QualType type)
                                 llvm_unreachable("Cannot handle builtin type");
                 }
 
+                llvm_unreachable("Why are we here? Just to suffer?");
+                /*
                 if (bit->isInteger())
                         return int_type;
                 if (bit->isFloatingPoint())
                         return float_type;
+                        */
         }
         else if (
                 const clang::PointerType * pt = dyn_cast<clang::PointerType>(t))
@@ -229,25 +232,23 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                         a->expr1 = lower_expr(bo->getRHS());
                         return a;
                 }
-                else
-                {
-                        // Handle the regular binary operators
-                        block::binary_expr::Ptr maybe_assign_op
-                                = maybe_compound_binary_opcode_to_ptr(
-                                        bo->getOpcode());
-                        if (maybe_assign_op)
-                                return create_compound_expr(
-                                        bo, maybe_assign_op);
+                
+                // Handle the regular binary operators
+                block::binary_expr::Ptr maybe_assign_op
+                        = maybe_compound_binary_opcode_to_ptr(bo->getOpcode());
+                if (maybe_assign_op)
+                        return create_compound_expr(bo, maybe_assign_op);
 
-                        block::binary_expr::Ptr be
-                                = simple_binary_opcode_to_ptr(bo->getOpcode());
-                        if (!be)
-                                bo->dump();
+                block::binary_expr::Ptr be
+                        = simple_binary_opcode_to_ptr(bo->getOpcode());
+                if (!be)
+                {
+                        bo->dump();
                         llvm_unreachable("Cannot handle binary operator");
-                        be->expr1 = lower_expr(bo->getLHS());
-                        be->expr2 = lower_expr(bo->getRHS());
-                        return be;
                 }
+                be->expr1 = lower_expr(bo->getLHS());
+                be->expr2 = lower_expr(bo->getRHS());
+                return be;
         }
         else if (clang::UnaryOperator * uo = dyn_cast<clang::UnaryOperator>(e))
         {
@@ -529,6 +530,7 @@ DynamicByDefaultConsumer::DynamicByDefaultConsumer(clang::ASTContext * context)
     : Visitor(context, new_decls)
 {
 }
+
 void DynamicByDefaultConsumer::HandleTranslationUnit(
         clang::ASTContext & context)
 {
@@ -560,7 +562,7 @@ DynamicByDefaultFrontendActionFactory::create()
         return std::make_unique<DynamicByDefaultAction>();
 }
 
-
+// TODO: factor out
 int main(int argc, const char * argv[])
 {
         llvm::InitLLVM X(argc, argv);
