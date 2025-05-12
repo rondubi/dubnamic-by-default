@@ -119,7 +119,37 @@ block::expr::Ptr DynamicByDefaultVisitor::create_compound_expr(
         return a;
 }
 
-block::binary_expr::Ptr simple_binary_opcode_to_ptr(clang::Opcode op)
+block::binary_expr::Ptr maybe_compound_binary_opcode_to_ptr(clang::BinaryOperatorKind op)
+{
+        switch (op)
+        {
+                // Operations like MulAssign need to be
+                // handled separately
+                case clang::BO_MulAssign:
+                        return std::make_shared<block::mul_expr>();
+                case clang::BO_DivAssign:
+                        return std::make_shared<block::div_expr>();
+                case clang::BO_RemAssign:
+                        return std::make_shared<block::mod_expr>();
+                case clang::BO_AddAssign:
+                        return std::make_shared<block::plus_expr>();
+                case clang::BO_SubAssign:
+                        return std::make_shared<block::minus_expr>();
+                case clang::BO_ShlAssign:
+                        return std::make_shared<block::lshift_expr>();
+                case clang::BO_ShrAssign:
+                        return std::make_shared<block::rshift_expr>();
+                case clang::BO_AndAssign:
+                        return std::make_shared<block::bitwise_and_expr>();
+                case clang::BO_XorAssign:
+                        return std::make_shared<block::bitwise_xor_expr>();
+                case clang::BO_OrAssign:
+                        return std::make_shared<block::bitwise_or_expr>();
+                default:
+                        return nullptr;
+        }
+}
+block::binary_expr::Ptr simple_binary_opcode_to_ptr(clang::BinaryOperatorKind op)
 {
         switch (op)
         {
@@ -159,8 +189,9 @@ block::binary_expr::Ptr simple_binary_opcode_to_ptr(clang::Opcode op)
                         return std::make_shared<block::bitwise_xor_expr>();
                 case clang::BO_Or:
                         return std::make_shared<block::bitwise_or_expr>();
+                default:
+                        return nullptr;
         }
-        return nullptr;
 }
 
 block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
@@ -201,70 +232,18 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 else
                 {
                         // Handle the regular binary operators
-                        switch (bo->getOpcode())
-                        {
-                                // Operations like MulAssign need to be
-                                // handled separately
-                                case clang::BO_MulAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::mul_expr>());
-                                case clang::BO_DivAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::div_expr>());
-                                case clang::BO_RemAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::mod_expr>());
-                                case clang::BO_AddAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::plus_expr>());
-                                case clang::BO_SubAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::minus_expr>());
-                                case clang::BO_ShlAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::lshift_expr>());
-                                case clang::BO_ShrAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::rshift_expr>());
-                                case clang::BO_AndAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::bitwise_and_expr>());
-                                case clang::BO_XorAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::bitwise_xor_expr>());
-                                case clang::BO_OrAssign:
-                                        return create_compound_expr(
-                                                bo,
-                                                std::make_shared<
-                                                        block::bitwise_or_expr>());
-                                default:
-                                        break;
-                        }
+                        block::binary_expr::Ptr maybe_assign_op
+                                = maybe_compound_binary_opcode_to_ptr(
+                                        bo->getOpcode());
+                        if (maybe_assign_op)
+                                return create_compound_expr(
+                                        bo, maybe_assign_op);
+
                         block::binary_expr::Ptr be
                                 = simple_binary_opcode_to_ptr(bo->getOpcode());
                         if (!be)
                                 bo->dump();
-                        llvm_unreachable(
-                                "Cannot handle binary "
-                                "operator");
+                        llvm_unreachable("Cannot handle binary operator");
                         be->expr1 = lower_expr(bo->getLHS());
                         be->expr2 = lower_expr(bo->getRHS());
                         return be;
