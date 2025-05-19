@@ -2,8 +2,8 @@
 
 #include <llvm/Support/InitLLVM.h>
 
-static constexpr const std::array<std::string_view, 1> make_static
-        = {std::string_view("y")};
+static constexpr const std::array<std::string_view, 2> make_static
+        = {"y", "j"};
 /* Resuable "block"s */
 
 block::scalar_type::Ptr int_type = nullptr;
