@@ -2,9 +2,34 @@
 
 #include <llvm/Support/InitLLVM.h>
 
+// BEGIN EXCLUSIVELY DUBNAMIC HACKINESS
 static constexpr const std::array<std::string_view, 2> make_static
         = {"y", "j"};
+
+static inline bool should_be_dynamic(const std::string & name)
+{
+        return std::find(make_static.cbegin(), make_static.cend(), name)
+                == make_static.cend();
+}
+
+// NOTE (rdubi): this is like wrap_type but with blackjack and hookers
+static inline block::type::Ptr
+make_dyn_as_needed(block::type::Ptr t, const std::string & name)
+{
+        block::builder_var_type::Ptr res
+                = std::make_shared<block::builder_var_type>();
+
+        res->closure_type = t;
+        res->builder_var_type_id = should_be_dynamic(name)
+                ? block::builder_var_type::DYN_VAR
+                : block::builder_var_type::STATIC_VAR;
+
+        return res;
+}
+// END EXCLUSIVELY DUBNAMIC HACKINESS
+
 /* Resuable "block"s */
+// dubi's NOTE: ???
 
 block::scalar_type::Ptr int_type = nullptr;
 block::scalar_type::Ptr char_type = nullptr;
@@ -88,6 +113,7 @@ block::type::Ptr DynamicByDefaultVisitor::lower_type(clang::QualType type)
         llvm_unreachable("Can't resolve type");
 }
 
+// TODO (rdubi): use this
 block::type::Ptr DynamicByDefaultVisitor::wrap_type(block::type::Ptr type)
 {
         auto bt = std::make_shared<block::builder_var_type>();
@@ -101,7 +127,8 @@ DynamicByDefaultVisitor::lower_function_arg(clang::ParmVarDecl * p)
 {
         block::var::Ptr v = std::make_shared<block::var>();
         v->var_name = p->getNameAsString();
-        v->var_type = lower_type(p->getType());
+        printf("Param name is %s\n", v->var_name.c_str());
+        v->var_type = make_dyn_as_needed(lower_type(p->getType()), v->var_name);
         return v;
 }
 
@@ -383,26 +410,6 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
         return nullptr;
 }
 
-static inline bool should_be_dynamic(const std::string & name)
-{
-        return std::find(make_static.cbegin(), make_static.cend(), name)
-                == make_static.cend();
-}
-
-static inline block::type::Ptr
-make_dyn_as_needed(block::type::Ptr t, const std::string & name)
-{
-        block::builder_var_type::Ptr res
-                = std::make_shared<block::builder_var_type>();
-
-        res->closure_type = t;
-        res->builder_var_type_id = should_be_dynamic(name)
-                ? block::builder_var_type::DYN_VAR
-                : block::builder_var_type::STATIC_VAR;
-
-        return res;
-}
-
 void DynamicByDefaultVisitor::handle_decl_stmt(
         clang::DeclStmt * ds, std::vector<block::stmt::Ptr> & out)
 {
@@ -423,7 +430,8 @@ void DynamicByDefaultVisitor::handle_decl_stmt(
                 // TODO (rdubi): is this a global name?
                 // NOTE (rdubi): doesn't seem that way
                 v->var_name = vd->getName().str();
-                printf("Var is called %s\n", v->var_name.c_str());
+                printf("Var is called %s, or more specifically %s\n", v->var_name.c_str(),
+                        vd->getIdentifier()->getName().data());
 
 
                 // NOTE (rdubi): this seems to be the part that decides
@@ -534,6 +542,7 @@ bool DynamicByDefaultVisitor::VisitFunctionDecl(clang::FunctionDecl * fd)
 {
         auto func_decl = std::make_shared<block::func_decl>();
         func_decl->func_name = fd->getName();
+        // TODO (rdubi): determine how to mark up function return type
         func_decl->return_type = lower_type(fd->getReturnType());
 
         for (auto pi : fd->parameters())
