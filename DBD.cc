@@ -620,7 +620,6 @@ int main(int argc, const char * argv[])
                         OptionsParser->getCompilations(),
                         OptionsParser->getSourcePathList());
                 DynamicByDefaultFrontendActionFactory Factory;
-                printf("About to run\n");
                 Tool.run(&Factory);
                 return 0;
         }

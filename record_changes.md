@@ -11,3 +11,4 @@
 - Made should_be_dynamic and make_dynamic_as_needed helpers, injected to decl_stmt handling
 - Confirmed that decl_stmt is used in for loops, so no need to duplicate dynamicness logic
 - Noted need for support for prefix operators
+- Noted need for support for unbraced conditionals
