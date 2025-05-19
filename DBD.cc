@@ -251,6 +251,7 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
 
         if (clang::UnaryOperator * uo = dyn_cast<clang::UnaryOperator>(e))
         {
+                // TODO (rdubi): clean up unary op handling, add support for prefix ops
                 // Most unary operators can be handled as unary
                 // operators, some need special handling as binary
                 // operators and expressions
@@ -336,7 +337,6 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
         }
         else if (clang::DeclRefExpr * dr = dyn_cast<clang::DeclRefExpr>(e))
         {
-                llvm_unreachable("No references in vanilla C");
                 clang::ValueDecl * vd = dr->getDecl();
                 auto v = std::make_shared<block::var>();
                 v->var_name = vd->getNameAsString();

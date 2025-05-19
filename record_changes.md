@@ -9,3 +9,5 @@
 - Added hard-coded make_static array
 - Broke decl stmt handling into helper so it's not ultra-nested
 - Made should_be_dynamic and make_dynamic_as_needed helpers, injected to decl_stmt handling
+- Confirmed that decl_stmt is used in for loops, so no need to duplicate dynamicness logic
+- Noted need for support for prefix operators
