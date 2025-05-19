@@ -1,0 +1,11 @@
+# Changes I have made
+## 5-12-25:
+- Added maybe_compound_binary_opcode_to_ptr
+- Added simple_binary_opcode_to_ptr 
+- Used these to decompose and reduce nesting on binary op handling in lower_expr
+- Inverted for loop internals in lower_stmt_into DeclStmt handling (early continue)
+
+## 5-19-25
+- Added hard-coded make_static array
+- Broke decl stmt handling into helper so it's not ultra-nested
+- Made should_be_dynamic and make_dynamic_as_needed helpers, injected to decl_stmt handling

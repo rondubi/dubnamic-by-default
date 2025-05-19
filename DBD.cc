@@ -2,6 +2,8 @@
 
 #include <llvm/Support/InitLLVM.h>
 
+static constexpr const std::array<std::string_view, 1> make_static
+        = {std::string_view("y")};
 /* Resuable "block"s */
 
 block::scalar_type::Ptr int_type = nullptr;
@@ -10,6 +12,7 @@ block::scalar_type::Ptr float_type = nullptr;
 block::scalar_type::Ptr void_type = nullptr;
 block::int_const::Ptr const_one = nullptr;
 block::int_const::Ptr const_zero = nullptr;
+
 /*--- */
 
 DynamicByDefaultVisitor::DynamicByDefaultVisitor(
@@ -57,32 +60,27 @@ block::type::Ptr DynamicByDefaultVisitor::lower_type(clang::QualType type)
                 }
 
                 llvm_unreachable("Why are we here? Just to suffer?");
-                /*
                 if (bit->isInteger())
                         return int_type;
                 if (bit->isFloatingPoint())
                         return float_type;
-                        */
         }
-        else if (
-                const clang::PointerType * pt = dyn_cast<clang::PointerType>(t))
+        if (const clang::PointerType * pt = dyn_cast<clang::PointerType>(t))
         {
                 auto bpt = std::make_shared<block::pointer_type>();
                 bpt->pointee_type = lower_type(pt->getPointeeType());
                 return bpt;
         }
-        else if (
-                const clang::ConstantArrayType * cat
-                = dyn_cast<const clang::ConstantArrayType>(t))
+        if (const clang::ConstantArrayType * cat
+            = dyn_cast<const clang::ConstantArrayType>(t))
         {
                 auto bat = std::make_shared<block::array_type>();
                 bat->element_type = lower_type(cat->getElementType());
                 bat->size = cat->getSize().getSExtValue();
                 return bat;
         }
-        else if (
-                const clang::DecayedType * dt
-                = dyn_cast<const clang::DecayedType>(t))
+        if (const clang::DecayedType * dt
+            = dyn_cast<const clang::DecayedType>(t))
         {
                 return lower_type(dt->getDecayedType());
         }
@@ -107,7 +105,6 @@ DynamicByDefaultVisitor::lower_function_arg(clang::ParmVarDecl * p)
         return v;
 }
 
-
 block::expr::Ptr DynamicByDefaultVisitor::create_compound_expr(
         clang::BinaryOperator * bo, block::binary_expr::Ptr bbe)
 {
@@ -122,7 +119,8 @@ block::expr::Ptr DynamicByDefaultVisitor::create_compound_expr(
         return a;
 }
 
-block::binary_expr::Ptr maybe_compound_binary_opcode_to_ptr(clang::BinaryOperatorKind op)
+block::binary_expr::Ptr
+maybe_compound_binary_opcode_to_ptr(clang::BinaryOperatorKind op)
 {
         switch (op)
         {
@@ -152,7 +150,9 @@ block::binary_expr::Ptr maybe_compound_binary_opcode_to_ptr(clang::BinaryOperato
                         return nullptr;
         }
 }
-block::binary_expr::Ptr simple_binary_opcode_to_ptr(clang::BinaryOperatorKind op)
+
+block::binary_expr::Ptr
+simple_binary_opcode_to_ptr(clang::BinaryOperatorKind op)
 {
         switch (op)
         {
@@ -201,29 +201,27 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
 {
         if (e == nullptr)
                 llvm_unreachable("Expr cannot be null?");
+
         if (clang::ParenExpr * pe = dyn_cast<clang::ParenExpr>(e))
-        {
                 return lower_expr(pe->getSubExpr());
-        }
-        else if (
-                clang::IntegerLiteral * il = dyn_cast<clang::IntegerLiteral>(e))
+
+        if (clang::IntegerLiteral * il = dyn_cast<clang::IntegerLiteral>(e))
         {
                 auto ic = std::make_shared<block::int_const>();
                 ic->value = il->getValue().getSExtValue();
                 ic->is_64bit = false;
                 return ic;
         }
-        else if (
-                clang::CharacterLiteral * cl
-                = dyn_cast<clang::CharacterLiteral>(e))
+
+        if (clang::CharacterLiteral * cl = dyn_cast<clang::CharacterLiteral>(e))
         {
                 auto ic = std::make_shared<block::int_const>();
                 ic->value = cl->getValue();
                 ic->is_64bit = false;
                 return ic;
         }
-        else if (
-                clang::BinaryOperator * bo = dyn_cast<clang::BinaryOperator>(e))
+
+        if (clang::BinaryOperator * bo = dyn_cast<clang::BinaryOperator>(e))
         {
                 if (bo->getOpcode() == clang::BO_Assign)
                 {
@@ -232,7 +230,7 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                         a->expr1 = lower_expr(bo->getRHS());
                         return a;
                 }
-                
+
                 // Handle the regular binary operators
                 block::binary_expr::Ptr maybe_assign_op
                         = maybe_compound_binary_opcode_to_ptr(bo->getOpcode());
@@ -250,7 +248,8 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 be->expr2 = lower_expr(bo->getRHS());
                 return be;
         }
-        else if (clang::UnaryOperator * uo = dyn_cast<clang::UnaryOperator>(e))
+
+        if (clang::UnaryOperator * uo = dyn_cast<clang::UnaryOperator>(e))
         {
                 // Most unary operators can be handled as unary
                 // operators, some need special handling as binary
@@ -337,6 +336,7 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
         }
         else if (clang::DeclRefExpr * dr = dyn_cast<clang::DeclRefExpr>(e))
         {
+                llvm_unreachable("No references in vanilla C");
                 clang::ValueDecl * vd = dr->getDecl();
                 auto v = std::make_shared<block::var>();
                 v->var_name = vd->getNameAsString();
@@ -346,16 +346,16 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 ve->var1 = v;
                 return ve;
         }
-        else if (
-                clang::ArraySubscriptExpr * ase
-                = dyn_cast<clang::ArraySubscriptExpr>(e))
+        if (clang::ArraySubscriptExpr * ase
+            = dyn_cast<clang::ArraySubscriptExpr>(e))
         {
                 auto sbe = std::make_shared<block::sq_bkt_expr>();
                 sbe->var_expr = lower_expr(ase->getLHS());
                 sbe->index = lower_expr(ase->getRHS());
                 return sbe;
         }
-        else if (clang::CallExpr * ce = dyn_cast<clang::CallExpr>(e))
+
+        if (clang::CallExpr * ce = dyn_cast<clang::CallExpr>(e))
         {
                 auto bce = std::make_shared<block::function_call_expr>();
                 bce->expr1 = lower_expr(ce->getCallee());
@@ -363,25 +363,80 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                         bce->args.push_back(lower_expr(arg));
                 return bce;
         }
-        else if (clang::InitListExpr * ile = dyn_cast<clang::InitListExpr>(e))
+
+        if (clang::InitListExpr * ile = dyn_cast<clang::InitListExpr>(e))
         {
                 auto bile = std::make_shared<block::initializer_list_expr>();
                 for (auto in : ile->inits())
                         bile->elems.push_back(lower_expr(in));
                 return bile;
         }
-        else if (clang::StringLiteral * sl = dyn_cast<clang::StringLiteral>(e))
+
+        if (clang::StringLiteral * sl = dyn_cast<clang::StringLiteral>(e))
         {
                 auto bse = std::make_shared<block::string_const>();
                 bse->value = sl->getString().str();
                 return bse;
         }
-        else
-        {
-                e->dump();
-                llvm_unreachable("Cannot handle expr type");
-        }
+        e->dump();
+        llvm_unreachable("Cannot handle expr type");
         return nullptr;
+}
+
+static inline bool should_be_dynamic(const std::string & name)
+{
+        return std::find(make_static.cbegin(), make_static.cend(), name)
+                == make_static.cend();
+}
+
+static inline block::type::Ptr
+make_dyn_as_needed(block::type::Ptr t, const std::string & name)
+{
+        block::builder_var_type::Ptr res
+                = std::make_shared<block::builder_var_type>();
+
+        res->closure_type = t;
+        res->builder_var_type_id = should_be_dynamic(name)
+                ? block::builder_var_type::DYN_VAR
+                : block::builder_var_type::STATIC_VAR;
+
+        return res;
+}
+
+void DynamicByDefaultVisitor::handle_decl_stmt(
+        clang::DeclStmt * ds, std::vector<block::stmt::Ptr> & out)
+{
+        for (auto de : ds->decls())
+        {
+                clang::VarDecl * vd = dyn_cast<clang::VarDecl>(de);
+
+                if (!vd)
+                {
+                        de->dump();
+                        llvm_unreachable("Cannot handle decl in decl_stmt");
+                        continue;
+                }
+
+                // TODO figure out if we need to reuse vars or is it
+                // okay for them to be separate
+                block::var::Ptr v = std::make_shared<block::var>();
+                // TODO (rdubi): is this a global name?
+                // NOTE (rdubi): doesn't seem that way
+                v->var_name = vd->getName().str();
+                printf("Var is called %s\n", v->var_name.c_str());
+
+
+                // NOTE (rdubi): this seems to be the part that decides
+                // "staticity"
+                v->var_type = make_dyn_as_needed(
+                        lower_type(vd->getType()), v->var_name);
+
+                block::decl_stmt::Ptr d = std::make_shared<block::decl_stmt>();
+                d->decl_var = v;
+                d->init_expr
+                        = vd->hasInit() ? lower_expr(vd->getInit()) : nullptr;
+                out.push_back(d);
+        }
 }
 
 void DynamicByDefaultVisitor::lower_stmt_into(
@@ -396,40 +451,12 @@ void DynamicByDefaultVisitor::lower_stmt_into(
                 out.push_back(nb);
                 return;
         }
-        else if (clang::DeclStmt * ds = dyn_cast<clang::DeclStmt>(s))
+        if (clang::DeclStmt * ds = dyn_cast<clang::DeclStmt>(s))
         {
-                for (auto de : ds->decls())
-                {
-                        if (clang::VarDecl * vd = dyn_cast<clang::VarDecl>(de))
-                        {
-                                // TODO figure out if we need to reuse
-                                // vars or is it okay for them to be
-                                // separate
-                                block::var::Ptr v
-                                        = std::make_shared<block::var>();
-                                v->var_name = vd->getName().str();
-                                v->var_type = lower_type(vd->getType());
-                                block::decl_stmt::Ptr d
-                                        = std::make_shared<block::decl_stmt>();
-                                d->decl_var = v;
-                                if (vd->hasInit())
-                                        d->init_expr
-                                                = lower_expr(vd->getInit());
-                                else
-                                        d->init_expr = nullptr;
-                                out.push_back(d);
-                        }
-                        else
-                        {
-                                de->dump();
-                                llvm_unreachable(
-                                        "Cannot handle decl in "
-                                        "decl_stmt");
-                        }
-                }
+                handle_decl_stmt(ds, out);
                 return;
         }
-        else if (clang::ForStmt * fs = dyn_cast<clang::ForStmt>(s))
+        if (clang::ForStmt * fs = dyn_cast<clang::ForStmt>(s))
         {
                 block::for_stmt::Ptr bfs = std::make_shared<block::for_stmt>();
                 std::vector<block::stmt::Ptr> is;
@@ -544,7 +571,6 @@ void DynamicByDefaultConsumer::HandleTranslationUnit(
         llvm::errs() << ss.str();
 }
 
-
 std::unique_ptr<clang::ASTConsumer> DynamicByDefaultAction::CreateASTConsumer(
         clang::CompilerInstance & CI, llvm::StringRef infile)
 {
@@ -594,6 +620,7 @@ int main(int argc, const char * argv[])
                         OptionsParser->getCompilations(),
                         OptionsParser->getSourcePathList());
                 DynamicByDefaultFrontendActionFactory Factory;
+                printf("About to run\n");
                 Tool.run(&Factory);
                 return 0;
         }

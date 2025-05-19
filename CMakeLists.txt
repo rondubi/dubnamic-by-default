@@ -13,6 +13,7 @@ endif()
 SET(BUILDIT_PATH "" CACHE PATH "Path to BuildIt")
 link_directories(${BUILDIT_PATH}/build)
 
+SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Clang REQUIRED CONFIG)
 

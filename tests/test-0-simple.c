@@ -1,8 +1,8 @@
 
 int main()
 {
+        int x = 3;
+        int y = 2;
         return 0;
 }
-
-// CHECK: int main() { return 0; }
 

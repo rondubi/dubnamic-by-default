@@ -37,6 +37,10 @@ private:
         void
         lower_stmt_into(clang::Stmt * s, std::vector<block::stmt::Ptr> & out);
 
+        // dubi's helpers
+        void handle_decl_stmt(
+                clang::DeclStmt * ds, std::vector<block::stmt::Ptr> & out);
+
 public:
         DynamicByDefaultVisitor(
                 clang::ASTContext * context,
@@ -70,4 +74,3 @@ public:
         DynamicByDefaultFrontendActionFactory();
         virtual std::unique_ptr<clang::FrontendAction> create() override;
 };
-
