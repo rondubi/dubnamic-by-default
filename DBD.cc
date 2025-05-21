@@ -3,8 +3,7 @@
 #include <llvm/Support/InitLLVM.h>
 
 // BEGIN EXCLUSIVELY DUBNAMIC HACKINESS
-static constexpr const std::array<std::string_view, 2> make_static
-        = {"y", "j"};
+static constexpr const std::array<std::string_view, 2> make_static = {"y", "j"};
 
 static inline bool should_be_dynamic(const std::string & name)
 {
@@ -113,7 +112,8 @@ block::type::Ptr DynamicByDefaultVisitor::lower_type(clang::QualType type)
                 return lower_type(dt->getDecayedType());
         }
         // rdubi additions below
-        if (const clang::ElaboratedType * et = dyn_cast<const clang::ElaboratedType>(t))
+        if (const clang::ElaboratedType * et
+            = dyn_cast<const clang::ElaboratedType>(t))
         {
                 return lower_type(et->getNamedType());
         }
@@ -295,8 +295,8 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
 
         if (clang::UnaryOperator * uo = dyn_cast<clang::UnaryOperator>(e))
         {
-                // TODO (rdubi): clean up unary op handling, add support for prefix ops
-                // Most unary operators can be handled as unary
+                // TODO (rdubi): clean up unary op handling, add support for
+                // prefix ops Most unary operators can be handled as unary
                 // operators, some need special handling as binary
                 // operators and expressions
 
@@ -358,7 +358,7 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                         return ue;
                 }
         }
-        else if (clang::CastExpr * ice = dyn_cast<clang::CastExpr>(e))
+        if (clang::CastExpr * ice = dyn_cast<clang::CastExpr>(e))
         {
                 if (clang::ImplicitCastExpr * ice
                     = dyn_cast<clang::ImplicitCastExpr>(e))
@@ -379,7 +379,7 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                         llvm_unreachable("Cannot handle cast operation");
                 }
         }
-        else if (clang::DeclRefExpr * dr = dyn_cast<clang::DeclRefExpr>(e))
+        if (clang::DeclRefExpr * dr = dyn_cast<clang::DeclRefExpr>(e))
         {
                 clang::ValueDecl * vd = dr->getDecl();
                 auto v = std::make_shared<block::var>();
@@ -423,7 +423,8 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 return bse;
         }
         // Begin dubi additions
-        if (clang::CXXConstructExpr * cxce = dyn_cast<clang::CXXConstructExpr>(e))
+        if (clang::CXXConstructExpr * cxce
+            = dyn_cast<clang::CXXConstructExpr>(e))
         {
                 return handle_cxx_construct_expr(cxce);
         }
@@ -447,23 +448,24 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
         return nullptr;
 }
 
-block::expr::Ptr DynamicByDefaultVisitor::handle_cxx_construct_expr(clang::CXXConstructExpr * cxce)
+block::expr::Ptr DynamicByDefaultVisitor::handle_cxx_construct_expr(
+        clang::CXXConstructExpr * cxce)
 {
         // Constructors are functions
-        // printf("Constructing %s\n", cxce->getConstructor()->getNameAsString().c_str());
+        // printf("Constructing %s\n",
+        // cxce->getConstructor()->getNameAsString().c_str());
         auto construct_expr = std::make_shared<block::function_call_expr>();
 
         auto fn = std::make_shared<block::var_expr>();
-        block::function_type::Ptr fn_t = functions[cxce->getConstructor()->getNameAsString().c_str()];
+        block::function_type::Ptr fn_t
+                = functions[cxce->getConstructor()->getNameAsString().c_str()];
         fn->var1 = std::make_shared<block::var>();
         fn->var1->var_type = fn_t;
 
         construct_expr->expr1 = fn;
 
         for (auto arg : cxce->arguments())
-        {
                 construct_expr->args.push_back(lower_expr(arg));
-        }
 
         return construct_expr;
 }
@@ -488,8 +490,8 @@ void DynamicByDefaultVisitor::handle_decl_stmt(
                 // TODO (rdubi): is this a global name?
                 // NOTE (rdubi): doesn't seem that way
                 v->var_name = vd->getName().str();
-                // printf("Var is called %s, or more specifically %s\n", v->var_name.c_str(),
-                        // vd->getIdentifier()->getName().data());
+                // printf("Var is called %s, or more specifically %s\n",
+                // v->var_name.c_str(), vd->getIdentifier()->getName().data());
 
 
                 // NOTE (rdubi): this seems to be the part that decides
