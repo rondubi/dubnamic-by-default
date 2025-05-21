@@ -41,6 +41,8 @@ private:
         void handle_decl_stmt(
                 clang::DeclStmt * ds, std::vector<block::stmt::Ptr> & out);
 
+        block::expr::Ptr handle_cxx_construct_expr(clang::CXXConstructExpr * cxce);
+
 public:
         DynamicByDefaultVisitor(
                 clang::ASTContext * context,

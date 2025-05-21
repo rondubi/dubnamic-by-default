@@ -26,6 +26,9 @@ make_dyn_as_needed(block::type::Ptr t, const std::string & name)
 
         return res;
 }
+
+std::unordered_map<std::string, block::function_type::Ptr> functions;
+
 // END EXCLUSIVELY DUBNAMIC HACKINESS
 
 /* Resuable "block"s */
@@ -109,6 +112,20 @@ block::type::Ptr DynamicByDefaultVisitor::lower_type(clang::QualType type)
         {
                 return lower_type(dt->getDecayedType());
         }
+        // rdubi additions below
+        if (const clang::ElaboratedType * et = dyn_cast<const clang::ElaboratedType>(t))
+        {
+                return lower_type(et->getNamedType());
+        }
+        if (const clang::RecordType * rt = dyn_cast<const clang::RecordType>(t))
+        {
+                // NOTE: this is a hack
+                auto thing = std::make_shared<block::named_type>();
+                thing->type_name = rt->getDecl()->getQualifiedNameAsString();
+                return thing;
+        }
+
+        // TODO (rdubi): typedef types
         type.dump();
         llvm_unreachable("Can't resolve type");
 }
@@ -405,9 +422,50 @@ block::expr::Ptr DynamicByDefaultVisitor::lower_expr(clang::Expr * e)
                 bse->value = sl->getString().str();
                 return bse;
         }
+        // Begin dubi additions
+        if (clang::CXXConstructExpr * cxce = dyn_cast<clang::CXXConstructExpr>(e))
+        {
+                return handle_cxx_construct_expr(cxce);
+        }
+        if (clang::MemberExpr * cme = dyn_cast<clang::MemberExpr>(e))
+        {
+                auto me = std::make_shared<block::member_access_expr>();
+                me->parent_expr = lower_expr(cme->getBase());
+                me->member_name = cme->getMemberDecl()->getNameAsString();
+
+                return me;
+        }
+        if (clang::FloatingLiteral * cfl = dyn_cast<clang::FloatingLiteral>(e))
+        {
+                auto fl = std::make_shared<block::float_const>();
+                fl->value = cfl->getValue().convertToFloat();
+                return fl;
+        }
+
         e->dump();
         llvm_unreachable("Cannot handle expr type");
         return nullptr;
+}
+
+block::expr::Ptr DynamicByDefaultVisitor::handle_cxx_construct_expr(clang::CXXConstructExpr * cxce)
+{
+        // Constructors are functions
+        // printf("Constructing %s\n", cxce->getConstructor()->getNameAsString().c_str());
+        auto construct_expr = std::make_shared<block::function_call_expr>();
+
+        auto fn = std::make_shared<block::var_expr>();
+        block::function_type::Ptr fn_t = functions[cxce->getConstructor()->getNameAsString().c_str()];
+        fn->var1 = std::make_shared<block::var>();
+        fn->var1->var_type = fn_t;
+
+        construct_expr->expr1 = fn;
+
+        for (auto arg : cxce->arguments())
+        {
+                construct_expr->args.push_back(lower_expr(arg));
+        }
+
+        return construct_expr;
 }
 
 void DynamicByDefaultVisitor::handle_decl_stmt(
@@ -430,8 +488,8 @@ void DynamicByDefaultVisitor::handle_decl_stmt(
                 // TODO (rdubi): is this a global name?
                 // NOTE (rdubi): doesn't seem that way
                 v->var_name = vd->getName().str();
-                printf("Var is called %s, or more specifically %s\n", v->var_name.c_str(),
-                        vd->getIdentifier()->getName().data());
+                // printf("Var is called %s, or more specifically %s\n", v->var_name.c_str(),
+                        // vd->getIdentifier()->getName().data());
 
 
                 // NOTE (rdubi): this seems to be the part that decides
