@@ -12,3 +12,16 @@
 - Confirmed that decl_stmt is used in for loops, so no need to duplicate dynamicness logic
 - Noted need for support for prefix operators
 - Noted need for support for unbraced conditionals
+
+
+## TODOs:
+
+- actually run buildit, use cute testing script
+- make sure that buildit can actually work on generated code
+- confirm that Visitor has access to qualified member names
+- confirm that member name collisions between structs don't break buildit
+- find out how to scope to run only on BSIM
+- look into use of bsim in ngspice
+- structs don't have constructors, only var_expr
+
+
